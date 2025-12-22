@@ -30,8 +30,8 @@
         <div class="header-right">
           <n-dropdown :options="userOptions" @select="handleUserSelect">
             <div class="user-info">
-              <n-avatar round size="small" :src="userInfo.avatarUrl || 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg'" />
-              <span class="username">{{ userInfo.nickname || userInfo.username || '管理员' }}</span>
+              <n-avatar round size="small" :src="userInfo?.avatarUrl || 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg'" />
+              <span class="username">{{ userInfo?.nickname || userInfo?.username || '管理员' }}</span>
             </div>
           </n-dropdown>
         </div>
@@ -47,8 +47,25 @@
 <script setup>
 import { h, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NIcon } from 'naive-ui'
-import { BoatOutline, PeopleOutline, MapOutline, ConstructOutline, LogOutOutline } from '@vicons/ionicons5'
+// 【修复】手动导入所有用到的 Naive UI 组件
+import { 
+  NLayout, 
+  NLayoutSider, 
+  NLayoutHeader, 
+  NLayoutContent, 
+  NMenu, 
+  NIcon, 
+  NDropdown, 
+  NAvatar 
+} from 'naive-ui'
+import { 
+  BoatOutline, 
+  PeopleOutline, 
+  MapOutline, 
+  ConstructOutline, 
+  LogOutOutline,
+  ListOutline
+} from '@vicons/ionicons5'
 import request from '../utils/request'
 
 const router = useRouter()
@@ -66,7 +83,6 @@ function renderIcon(icon) {
 
 // 菜单配置
 const menuOptions = [
-  // 在 AdminLayout.vue 的 script setup 中修改 menuOptions
   {
     label: '船舶管理',
     key: 'ShipList',
@@ -74,8 +90,8 @@ const menuOptions = [
   },
   {
     label: '船舶类型',
-    key: 'CategoryList', // 新增类型管理
-    icon: renderIcon(ListOutline) // 需引入 ListOutline 图标
+    key: 'CategoryList',
+    icon: renderIcon(ListOutline)
   },
   {
     label: '船员管理',
@@ -116,8 +132,11 @@ onMounted(() => {
 // 菜单跳转
 const handleMenuUpdate = (key) => {
   activeKey.value = key
-  // 简单根据 Key 跳转，实际项目可能需要映射 path
   if (key === 'ShipList') router.push('/ship')
+  if (key === 'CategoryList') router.push('/category')
+  if (key === 'CrewList') router.push('/crew')
+  if (key === 'VoyageList') router.push('/voyage')
+  if (key === 'MaintenanceList') router.push('/maintenance')
 }
 
 // 用户操作

@@ -54,7 +54,23 @@
 
 <script setup>
 import { ref, reactive, onMounted, h } from 'vue'
-import { NButton, NSpace, useMessage, NTag } from 'naive-ui'
+import { 
+  NButton, 
+  NTag, 
+  NSpace, 
+  useMessage, 
+  NImage, 
+  NIcon, 
+  NCard, 
+  NInput, 
+  NSelect, 
+  NDataTable, 
+  NModal, 
+  NForm, 
+  NFormItem, 
+  NInputNumber, 
+  NUpload 
+} from 'naive-ui'
 import request from '../../utils/request'
 
 const message = useMessage()

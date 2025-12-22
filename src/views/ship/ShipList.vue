@@ -80,9 +80,25 @@
 
 <script setup>
 import { ref, reactive, onMounted, h } from 'vue'
-import { NButton, NTag, NSpace, useMessage, NImage, NIcon } from 'naive-ui'
+// 【修复】手动导入所有用到的 Naive UI 组件
+import { 
+  NButton, 
+  NTag, 
+  NSpace, 
+  useMessage, 
+  NImage, 
+  NIcon, 
+  NCard, 
+  NInput, 
+  NSelect, 
+  NDataTable, 
+  NModal, 
+  NForm, 
+  NFormItem, 
+  NInputNumber, 
+  NUpload 
+} from 'naive-ui'
 import { SearchOutline as Search, AddOutline as Add } from '@vicons/ionicons5'
-// 引入封装好的 request，它会自动处理 Token
 import request from '../../utils/request'
 
 const message = useMessage()
@@ -146,7 +162,6 @@ const columns = [
       if (row.status === 'IN_SERVICE' || row.status === '在役') type = 'success'
       if (row.status === 'MAINTENANCE' || row.status === '维修中') type = 'warning'
       if (row.status === 'RUNNING' || row.status === '航行中') type = 'info'
-      // 兼容中英文显示
       const label = statusOptions.find(s => s.value === row.status)?.label || row.status
       return h(NTag, { type, bordered: false }, { default: () => label })
     }
@@ -209,19 +224,13 @@ const openModal = (type, row) => {
   showModal.value = true
 }
 
-// 【关键修改】自定义上传函数，使用 request.js 自动携带 Token
 const customUpload = ({ file, onFinish, onError }) => {
   const formData = new FormData()
   formData.append('file', file.file)
   
-  // 这里直接使用 /upload，request 会自动加上 baseURL (/api) 和 Authorization headers
   request.post('/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   }).then((res) => {
-     // 根据 request.js 的拦截器，res 可能是 data 或者包含 code 的对象
-     // 假设后端 FileUploadController 返回 Result<String>
      if(res.code === 0) {
         formValue.value.coverImg = res.data
         message.success('上传成功')
@@ -261,7 +270,6 @@ const handleSubmit = (e) => {
 }
 
 const handleDelete = async (row) => {
-  // eslint-disable-next-line no-restricted-globals
   if (!confirm(`确认删除船舶 "${row.name}" 吗？`)) return
   try {
     await request.delete('/ship', { params: { id: row.id } })
@@ -272,7 +280,6 @@ const handleDelete = async (row) => {
   }
 }
 
-// 初始化
 onMounted(() => {
   fetchData()
 })
@@ -285,7 +292,6 @@ const handlePageChange = (page) => {
 
 <style scoped>
 .page-container {
-  /* 页面容器样式 */
 }
 .toolbar {
   padding: 16px;

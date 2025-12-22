@@ -29,7 +29,23 @@
 
 <script setup>
 import { ref, onMounted, h } from 'vue'
-import { NButton, NSpace, useMessage, NIcon } from 'naive-ui'
+import { 
+  NButton, 
+  NTag, 
+  NSpace, 
+  useMessage, 
+  NImage, 
+  NIcon, 
+  NCard, 
+  NInput, 
+  NSelect, 
+  NDataTable, 
+  NModal, 
+  NForm, 
+  NFormItem, 
+  NInputNumber, 
+  NUpload 
+} from 'naive-ui'
 import { AddOutline as Add } from '@vicons/ionicons5'
 import request from '../../utils/request'
 
