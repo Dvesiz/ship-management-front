@@ -1,84 +1,99 @@
 <template>
-  <n-card bordered title="航次管理">
-    <div class="toolbar" style="margin-bottom: 16px; display: flex; justify-content: space-between;">
-      <n-space>
-        <n-select v-model:value="searchShipId" :options="shipOptions" placeholder="选择船舶" clearable style="width: 180px" filterable />
-        <n-button type="primary" @click="fetchData">查询</n-button>
-      </n-space>
-      <n-button type="primary" color="#18a058" @click="openModal">新建航次</n-button>
+  <el-card shadow="never" class="page-card">
+    <div class="toolbar">
+      <el-form :inline="true" :model="searchForm">
+        <el-form-item>
+          <el-select v-model="searchForm.shipId" placeholder="选择船舶" clearable filterable style="width: 180px">
+            <el-option v-for="item in shipOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="Search" @click="handleSearch">查询</el-button>
+          <el-button type="success" icon="Plus" @click="openDialog">新建航次</el-button>
+        </el-form-item>
+      </el-form>
     </div>
 
-    <n-data-table remote :columns="columns" :data="data" :loading="loading" :pagination="pagination" @update:page="handlePageChange"/>
+    <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+      <el-table-column prop="shipId" label="船舶">
+        <template #default="{ row }">{{ getShipName(row.shipId) }}</template>
+      </el-table-column>
+      <el-table-column prop="startPort" label="始发港" />
+      <el-table-column prop="endPort" label="目的港" />
+      <el-table-column prop="startTime" label="开航时间" width="180" />
+      <el-table-column prop="endTime" label="结束时间" width="180">
+        <template #default="{ row }">{{ row.endTime || '-' }}</template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.status === '已完成' ? 'success' : 'warning'">{{ row.status || '进行中' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="120" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button v-if="row.status !== '已完成'" type="primary" size="small" @click="handleFinish(row)">完工</el-button>
+          <el-tag v-else type="success" size="small">已归档</el-tag>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <n-modal v-model:show="showModal" preset="card" title="新建航次" style="width: 600px">
-      <n-form ref="formRef" :model="formValue" :rules="rules" label-width="auto">
-        <n-form-item label="执行船舶" path="shipId">
-          <n-select v-model:value="formValue.shipId" :options="shipOptions" filterable />
-        </n-form-item>
-        <n-space>
-          <n-form-item label="始发港" path="startPort">
-            <n-input v-model:value="formValue.startPort" />
-          </n-form-item>
-          <n-form-item label="目的港" path="endPort">
-            <n-input v-model:value="formValue.endPort" />
-          </n-form-item>
-        </n-space>
-        <n-form-item label="开航时间" path="startTime">
-          <n-date-picker v-model:value="formValue.startTime" type="datetime" style="width: 100%"/>
-        </n-form-item>
-      </n-form>
+    <div class="pagination">
+      <el-pagination
+        v-model:current-page="pagination.pageNum"
+        v-model:page-size="pagination.pageSize"
+        :total="pagination.total"
+        layout="total, prev, pager, next"
+        @current-change="fetchData"
+        background
+      />
+    </div>
+
+    <el-dialog v-model="dialogVisible" title="新建航次" width="500px" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item label="执行船舶" prop="shipId">
+          <el-select v-model="form.shipId" filterable style="width: 100%">
+            <el-option v-for="item in shipOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="始发港" prop="startPort">
+          <el-input v-model="form.startPort" />
+        </el-form-item>
+        <el-form-item label="目的港" prop="endPort">
+          <el-input v-model="form.endPort" />
+        </el-form-item>
+        <el-form-item label="开航时间" prop="startTime">
+          <el-date-picker v-model="form.startTime" type="datetime" style="width: 100%" value-format="YYYY-MM-DD HH:mm:ss" />
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <n-button type="primary" @click="handleSubmit" :loading="submitting">提交开航</n-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">提交开航</el-button>
       </template>
-    </n-modal>
-  </n-card>
+    </el-dialog>
+  </el-card>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, h } from 'vue'
-import { 
-  NButton, 
-  NTag, 
-  NSpace, 
-  useMessage, 
-  NImage, 
-  NIcon, 
-  NCard, 
-  NInput, 
-  NSelect, 
-  NDataTable, 
-  NModal, 
-  NForm, 
-  NFormItem, 
-  NInputNumber, 
-  NUpload 
-} from 'naive-ui'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../../utils/request'
 
-const message = useMessage()
 const loading = ref(false)
-const data = ref([])
+const tableData = ref([])
 const shipOptions = ref([])
-const searchShipId = ref(null)
+const dialogVisible = ref(false)
+const submitting = ref(false)
+const formRef = ref(null)
 
-const pagination = reactive({ page: 1, pageSize: 10, itemCount: 0 })
+const searchForm = reactive({ shipId: null })
+const pagination = reactive({ pageNum: 1, pageSize: 10, total: 0 })
+const form = ref({ shipId: null, startPort: '', endPort: '', startTime: null })
 
-const columns = [
-  { title: '船舶', key: 'shipId', render(row) { return shipOptions.value.find(s=>s.value===row.shipId)?.label || row.shipId } },
-  { title: '始发港', key: 'startPort' },
-  { title: '目的港', key: 'endPort' },
-  { title: '开航时间', key: 'startTime' },
-  { title: '结束时间', key: 'endTime', render(row){ return row.endTime || '-' } },
-  { title: '状态', key: 'status', render(row){
-      return h(NTag, { type: row.status === '已完成' ? 'success' : 'warning' }, { default: () => row.status || '进行中' })
-  }},
-  { title: '操作', key: 'action', render(row) {
-      if (row.status !== '已完成') {
-        return h(NButton, { size: 'small', type: 'primary', onClick: ()=>handleFinish(row) }, { default:()=>'完工' })
-      }
-      return h(NTag, { type: 'success', size: 'small' }, { default:()=>'已归档' })
-  }}
-]
+const rules = {
+  shipId: [{ required: true, message: '请选择船舶', trigger: 'change' }],
+  startPort: [{ required: true, message: '请输入始发港', trigger: 'blur' }],
+  startTime: [{ required: true, message: '请选择时间', trigger: 'change' }]
+}
 
 const fetchShips = async () => {
   const res = await request.get('/ship', { params: { pageNum: 1, pageSize: 100 } })
@@ -87,43 +102,50 @@ const fetchShips = async () => {
 
 const fetchData = async () => {
   loading.value = true
-  const res = await request.get('/voyages', { params: { pageNum: pagination.page, pageSize: pagination.pageSize, shipId: searchShipId.value } })
-  data.value = res.data.records
-  pagination.itemCount = res.data.total
+  const res = await request.get('/voyages', { params: { ...pagination, ...searchForm } })
+  tableData.value = res.data.records
+  pagination.total = res.data.total
   loading.value = false
 }
 
-const showModal = ref(false)
-const submitting = ref(false)
-const formRef = ref(null)
-const formValue = ref({ shipId: null, startPort: '', endPort: '', startTime: null })
-const rules = { shipId: {required:true, type:'number'}, startPort:{required:true}, startTime:{required:true, type:'number', message:'请选择时间'} }
+const handleSearch = () => { pagination.pageNum = 1; fetchData() }
 
-const openModal = () => { formValue.value = {shipId:null}; showModal.value=true }
+const openDialog = () => {
+  form.value = { shipId: null, startPort: '', endPort: '', startTime: null }
+  dialogVisible.value = true
+}
 
-const handleSubmit = () => {
-  formRef.value?.validate(async (errors) => {
-    if(!errors) {
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
       submitting.value = true
       try {
-        await request.post('/voyages', formValue.value)
-        message.success('开航成功')
-        showModal.value = false
+        await request.post('/voyages', form.value)
+        ElMessage.success('开航成功')
+        dialogVisible.value = false
         fetchData()
-      } catch(e) { message.error(e.message) }
+      } catch (e) {}
       finally { submitting.value = false }
     }
   })
 }
 
-const handleFinish = async (row) => {
-  if(!confirm('确认结束该航次？')) return
-  await request.patch('/voyages/finish', null, { params: { id: row.id } })
-  message.success('航次已完工')
-  fetchData()
+const handleFinish = (row) => {
+  ElMessageBox.confirm('确认结束该航次？', '提示', { type: 'warning' }).then(async () => {
+    await request.patch('/voyages/finish', null, { params: { id: row.id } })
+    ElMessage.success('航次已完工')
+    fetchData()
+  })
 }
 
-const handlePageChange = (p) => { pagination.page = p; fetchData() }
+const getShipName = (id) => shipOptions.value.find(s => s.value === id)?.label || id
 
 onMounted(() => { fetchShips(); fetchData() })
 </script>
+
+<style scoped>
+.page-card { min-height: calc(100vh - 120px); }
+.toolbar { margin-bottom: 16px; }
+.pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+</style>

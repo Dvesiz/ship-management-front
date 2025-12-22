@@ -1,13 +1,16 @@
 <script setup>
-import { NMessageProvider } from 'naive-ui'
-// 不需要在这里引入 Login 了，路由会自动处理
 </script>
 
 <template>
-  <n-message-provider>
-    <router-view />
-  </n-message-provider>
+  <router-view />
 </template>
 
-<style scoped>
+<style>
+/* 全局样式重置 */
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'mVyh', Arial, sans-serif;
+}
 </style>

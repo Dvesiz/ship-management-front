@@ -9,7 +9,15 @@ export default defineConfig({
   // ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
   server: {
+    host: true, 
+    allowedHosts: [
+      '5ac6df1d.r7.cpolar.top',
+      'dhy721.dpdns.org', // <-- 你的 cpolar 公网域名
+      'localhost',
+      '127.0.0.1'
+    ],
     proxy: {
+
       '/api': {
         target: 'http://localhost:8080', // 你的后端地址
         changeOrigin: true,

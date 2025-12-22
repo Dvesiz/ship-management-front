@@ -1,303 +1,231 @@
 <template>
-  <div class="page-container">
-    <n-card bordered :content-style="{ padding: '0' }">
-      <div class="toolbar">
-        <n-space>
-          <n-input v-model:value="searchName" placeholder="搜索船名" clearable />
-          <n-select 
-            v-model:value="searchStatus" 
-            placeholder="状态" 
-            :options="statusOptions" 
-            clearable 
-            style="width: 140px" 
-          />
-          <n-button type="primary" @click="fetchData">
-            <template #icon><n-icon><Search /></n-icon></template>
-            查询
-          </n-button>
-        </n-space>
-        <n-button type="primary" color="#18a058" @click="openModal('add')">
-          <template #icon><n-icon><Add /></n-icon></template>
-          新增船舶
-        </n-button>
-      </div>
+  <el-card shadow="never" class="page-card">
+    <div class="toolbar">
+      <el-form :inline="true" :model="searchForm">
+        <el-form-item>
+          <el-input v-model="searchForm.name" placeholder="搜索船名" clearable prefix-icon="Search" />
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="searchForm.status" placeholder="状态" clearable style="width: 140px">
+            <el-option label="在役" value="IN_SERVICE" />
+            <el-option label="维修中" value="MAINTENANCE" />
+            <el-option label="停运" value="STOPPED" />
+            <el-option label="航行中" value="RUNNING" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="Search" @click="handleSearch">查询</el-button>
+          <el-button type="success" icon="Plus" @click="openDialog('add')">新增船舶</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
 
-      <n-data-table
-        remote
-        :columns="columns"
-        :data="data"
-        :loading="loading"
-        :pagination="pagination"
-        @update:page="handlePageChange"
+    <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+      <el-table-column label="封面" width="100" align="center">
+        <template #default="{ row }">
+          <el-image 
+            v-if="row.coverImg" 
+            :src="row.coverImg" 
+            :preview-src-list="[row.coverImg]" 
+            style="width: 50px; height: 50px; border-radius: 4px"
+            preview-teleported
+            fit="cover"
+          />
+          <span v-else class="text-gray">无</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="name" label="船名" />
+      <el-table-column prop="categoryId" label="类型">
+        <template #default="{ row }">{{ getCategoryName(row.categoryId) }}</template>
+      </el-table-column>
+      <el-table-column prop="tonnage" label="吨位 (T)" />
+      <el-table-column prop="status" label="状态" align="center">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="180" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" link icon="Edit" @click="openDialog('edit', row)">编辑</el-button>
+          <el-button type="danger" link icon="Delete" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div class="pagination">
+      <el-pagination
+        v-model:current-page="pagination.pageNum"
+        v-model:page-size="pagination.pageSize"
+        :total="pagination.total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="fetchData"
+        @current-change="fetchData"
+        background
       />
-    </n-card>
+    </div>
 
-    <n-modal v-model:show="showModal" preset="card" :title="modalTitle" style="width: 600px">
-      <n-form ref="formRef" :model="formValue" :rules="rules" label-placement="left" label-width="auto">
-        <n-form-item label="船舶名称" path="name">
-          <n-input v-model:value="formValue.name" placeholder="请输入船舶名称" />
-        </n-form-item>
-        
-        <n-form-item label="船舶类型" path="categoryId">
-          <n-select 
-            v-model:value="formValue.categoryId" 
-            :options="categoryOptions" 
-            placeholder="请选择类型" 
-          />
-        </n-form-item>
-
-        <n-form-item label="吨位" path="tonnage">
-          <n-input-number v-model:value="formValue.tonnage" placeholder="单位：吨" style="width: 100%" />
-        </n-form-item>
-
-        <n-form-item label="状态" path="status">
-          <n-select v-model:value="formValue.status" :options="statusOptions" />
-        </n-form-item>
-
-        <n-form-item label="船舶照片">
-           <n-upload
-             :custom-request="customUpload"
-             list-type="image-card"
-             :max="1"
-           >
-             点击上传
-           </n-upload>
-           <div v-if="formValue.coverImg" style="margin-left: 10px;">
-              <n-image width="100" :src="formValue.coverImg" />
-           </div>
-        </n-form-item>
-      </n-form>
-      
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item label="船舶名称" prop="name">
+          <el-input v-model="form.name" placeholder="请输入船名" />
+        </el-form-item>
+        <el-form-item label="类型" prop="categoryId">
+          <el-select v-model="form.categoryId" placeholder="请选择类型" style="width: 100%">
+            <el-option v-for="c in categoryOptions" :key="c.value" :label="c.label" :value="c.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="吨位" prop="tonnage">
+          <el-input-number v-model="form.tonnage" :min="0" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-select v-model="form.status" style="width: 100%">
+            <el-option label="在役" value="IN_SERVICE" />
+            <el-option label="维修中" value="MAINTENANCE" />
+            <el-option label="停运" value="STOPPED" />
+            <el-option label="航行中" value="RUNNING" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="船舶照片">
+          <el-upload
+            action="#"
+            :http-request="customUpload"
+            :show-file-list="false"
+            class="avatar-uploader"
+          >
+            <img v-if="form.coverImg" :src="form.coverImg" class="avatar" />
+            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+          </el-upload>
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <n-space justify="end">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSubmit" :loading="submitting">确定</n-button>
-        </n-space>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
-    </n-modal>
-  </div>
+    </el-dialog>
+  </el-card>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, h } from 'vue'
-// 【修复】手动导入所有用到的 Naive UI 组件
-import { 
-  NButton, 
-  NTag, 
-  NSpace, 
-  useMessage, 
-  NImage, 
-  NIcon, 
-  NCard, 
-  NInput, 
-  NSelect, 
-  NDataTable, 
-  NModal, 
-  NForm, 
-  NFormItem, 
-  NInputNumber, 
-  NUpload 
-} from 'naive-ui'
-import { SearchOutline as Search, AddOutline as Add } from '@vicons/ionicons5'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../../utils/request'
 
-const message = useMessage()
-
-// ============ 数据定义 ============
 const loading = ref(false)
-const data = ref([])
-const searchName = ref('')
-const searchStatus = ref(null)
+const tableData = ref([])
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const submitting = ref(false)
+const formRef = ref(null)
 
-// 分页配置
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  itemCount: 0,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50],
-  onChange: (page) => { pagination.page = page; fetchData() },
-  onUpdatePageSize: (pageSize) => { pagination.pageSize = pageSize; pagination.page = 1; fetchData() }
-})
+// 【修复1】不再写死分类，改用 ref 存储后端数据
+const categoryOptions = ref([]) 
 
-const statusOptions = [
-  { label: '在役', value: 'IN_SERVICE' },
-  { label: '维修中', value: 'MAINTENANCE' },
-  { label: '停运', value: 'STOPPED' },
-  { label: '航行中', value: 'RUNNING' }
-]
+const searchForm = reactive({ name: '', status: '' })
+const pagination = reactive({ pageNum: 1, pageSize: 10, total: 0 })
+const form = ref({ id: null, name: '', categoryId: null, tonnage: 0, status: 'IN_SERVICE', coverImg: '' })
 
-// 假设分类数据
-const categoryOptions = ref([
-  { label: '散货船', value: 1 },
-  { label: '集装箱船', value: 2 },
-  { label: '油轮', value: 3 },
-  { label: '液化气船', value: 4 }
-])
+const rules = {
+  name: [{ required: true, message: '请输入船名', trigger: 'blur' }],
+  categoryId: [{ required: true, message: '请选择类型', trigger: 'change' }]
+}
 
-// ============ 表格列定义 ============
-const columns = [
-  {
-    title: '封面',
-    key: 'coverImg',
-    render(row) {
-      return row.coverImg ? h(NImage, { width: 50, src: row.coverImg }) : '无'
+// 【修复2】新增：获取所有分类的方法
+const fetchCategories = async () => {
+  try {
+    const res = await request.get('/ship-categories')
+    if (res.code === 0) {
+      // 映射成 Select 需要的格式
+      categoryOptions.value = res.data.map(item => ({
+        label: item.name,
+        value: item.id
+      }))
     }
-  },
-  { title: '船名', key: 'name' },
-  { 
-    title: '类型', 
-    key: 'categoryId',
-    render(row) {
-      const cat = categoryOptions.value.find(c => c.value === row.categoryId)
-      return cat ? cat.label : row.categoryId
-    }
-  },
-  { title: '吨位 (T)', key: 'tonnage' },
-  { 
-    title: '状态', 
-    key: 'status',
-    render(row) {
-      let type = 'default'
-      if (row.status === 'IN_SERVICE' || row.status === '在役') type = 'success'
-      if (row.status === 'MAINTENANCE' || row.status === '维修中') type = 'warning'
-      if (row.status === 'RUNNING' || row.status === '航行中') type = 'info'
-      const label = statusOptions.find(s => s.value === row.status)?.label || row.status
-      return h(NTag, { type, bordered: false }, { default: () => label })
-    }
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    render(row) {
-      return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openModal('edit', row) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' })
-        ]
-      })
-    }
+  } catch(e) {
+    console.error('获取分类失败', e)
   }
-]
+}
 
-// ============ 获取数据 ============
 const fetchData = async () => {
   loading.value = true
   try {
     const res = await request.get('/ship', {
-      params: {
-        pageNum: pagination.page,
-        pageSize: pagination.pageSize,
-        name: searchName.value,
-        status: searchStatus.value
-      }
+      params: { ...pagination, ...searchForm }
     })
-    data.value = res.data.records
-    pagination.itemCount = res.data.total
-  } catch (error) {
-    message.error('数据加载失败')
-  } finally {
-    loading.value = false
-  }
+    tableData.value = res.data.records
+    pagination.total = res.data.total
+  } finally { loading.value = false }
 }
 
-// ============ 增删改逻辑 ============
-const showModal = ref(false)
-const modalTitle = ref('新增')
-const submitting = ref(false)
-const formRef = ref(null)
-const formValue = ref({ id: null, name: '', categoryId: null, tonnage: 0, status: 'IN_SERVICE', coverImg: '' })
+const handleSearch = () => { pagination.pageNum = 1; fetchData() }
 
-const rules = {
-  name: { required: true, message: '请输入船名', trigger: 'blur' },
-  categoryId: { required: true, type: 'number', message: '请选择类型', trigger: 'blur' }
+const openDialog = (type, row) => {
+  dialogTitle.value = type === 'add' ? '新增船舶' : '编辑船舶'
+  form.value = type === 'add' 
+    ? { id: null, name: '', categoryId: null, tonnage: 0, status: 'IN_SERVICE', coverImg: '' }
+    : { ...row }
+  dialogVisible.value = true
 }
 
-const openModal = (type, row) => {
-  if (type === 'add') {
-    modalTitle.value = '新增船舶'
-    formValue.value = { id: null, name: '', categoryId: null, tonnage: 0, status: 'IN_SERVICE', coverImg: '' }
-  } else {
-    modalTitle.value = '编辑船舶'
-    formValue.value = { ...row } 
-  }
-  showModal.value = true
+const customUpload = async ({ file }) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  try {
+    const res = await request.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' }})
+    form.value.coverImg = res.data
+    ElMessage.success('上传成功')
+  } catch(e) { ElMessage.error('上传失败') }
 }
 
-const customUpload = ({ file, onFinish, onError }) => {
-  const formData = new FormData()
-  formData.append('file', file.file)
-  
-  request.post('/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }).then((res) => {
-     if(res.code === 0) {
-        formValue.value.coverImg = res.data
-        message.success('上传成功')
-        onFinish()
-     } else {
-        message.error(res.message || '上传失败')
-        onError()
-     }
-  }).catch((error) => {
-    message.error('上传出错')
-    onError()
-  })
-}
-
-const handleSubmit = (e) => {
-  e.preventDefault()
-  formRef.value?.validate(async (errors) => {
-    if (!errors) {
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
       submitting.value = true
       try {
-        if (formValue.value.id) {
-          await request.put('/ship', formValue.value)
-          message.success('更新成功')
-        } else {
-          await request.post('/ship', formValue.value)
-          message.success('创建成功')
-        }
-        showModal.value = false
+        if (form.value.id) await request.put('/ship', form.value)
+        else await request.post('/ship', form.value)
+        ElMessage.success('操作成功')
+        dialogVisible.value = false
         fetchData()
-      } catch (error) {
-        message.error(error.message || '操作失败')
-      } finally {
-        submitting.value = false
-      }
+      } catch(e) {} 
+      finally { submitting.value = false }
     }
   })
 }
 
-const handleDelete = async (row) => {
-  if (!confirm(`确认删除船舶 "${row.name}" 吗？`)) return
-  try {
-    await request.delete('/ship', { params: { id: row.id } })
-    message.success('删除成功')
-    fetchData()
-  } catch (error) {
-    message.error('删除失败')
-  }
+const handleDelete = (row) => {
+  ElMessageBox.confirm(`确认删除船舶 "${row.name}" 吗？`, '警告', { type: 'warning' })
+    .then(async () => {
+      await request.delete('/ship', { params: { id: row.id } })
+      ElMessage.success('删除成功')
+      fetchData()
+    })
 }
+
+// 【修复3】动态查找名称，如果找不到（比如被删了）就显示 ID
+const getCategoryName = (id) => {
+  const found = categoryOptions.value.find(c => c.value === id)
+  return found ? found.label : id 
+}
+
+const getStatusLabel = (s) => ({ 'IN_SERVICE': '在役', 'MAINTENANCE': '维修中', 'STOPPED': '停运', 'RUNNING': '航行中' }[s] || s)
+const getStatusType = (s) => ({ 'IN_SERVICE': 'success', 'MAINTENANCE': 'warning', 'STOPPED': 'danger', 'RUNNING': 'info' }[s] || '')
 
 onMounted(() => {
+  // 【修复4】加载时先获取分类，再获取列表
+  fetchCategories()
   fetchData()
 })
-
-const handlePageChange = (page) => {
-  pagination.page = page
-  fetchData()
-}
 </script>
 
 <style scoped>
-.page-container {
-}
-.toolbar {
-  padding: 16px;
-  border-bottom: 1px solid #efeff5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.page-card { min-height: calc(100vh - 120px); }
+.toolbar { margin-bottom: 16px; }
+.pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+.avatar-uploader .el-upload { border: 1px dashed #d9d9d9; border-radius: 6px; cursor: pointer; position: relative; overflow: hidden; }
+.avatar-uploader .el-upload:hover { border-color: #409EFF; }
+.avatar-uploader-icon { font-size: 28px; color: #8c939d; width: 100px; height: 100px; text-align: center; line-height: 100px; }
+.avatar { width: 100px; height: 100px; display: block; object-fit: cover; }
+.text-gray { color: #909399; font-size: 12px; }
 </style>

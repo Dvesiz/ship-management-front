@@ -1,16 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
-// ↓↓↓↓↓↓↓ 修改了这一行 ↓↓↓↓↓↓↓
-import Login from '../Login.vue' // 原来是 '../components/Login.vue'
-// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
+// 导入布局组件
 import AdminLayout from '../layout/AdminLayout.vue'
+// 导入登录组件
+import Login from '../Login.vue'
 
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: { title: '登录' }
   },
   {
     path: '/',
@@ -19,34 +18,41 @@ const routes = [
     children: [
       {
         path: 'ship',
-        name: 'ShipList',
-        // 请确保你已经创建了 src/views/ship/ShipList.vue 文件
+        name: 'Ship',
         component: () => import('../views/ship/ShipList.vue'),
         meta: { title: '船舶管理' }
       },
       {
         path: 'category',
-        name: 'CategoryList',
+        name: 'Category',
         component: () => import('../views/category/CategoryList.vue'),
         meta: { title: '船舶类型' }
       },
       {
         path: 'crew',
-        name: 'CrewList',
+        name: 'Crew',
         component: () => import('../views/crew/CrewList.vue'),
         meta: { title: '船员管理' }
       },
       {
         path: 'voyage',
-        name: 'VoyageList',
+        name: 'Voyage',
         component: () => import('../views/voyage/VoyageList.vue'),
-        meta: { title: '航次管理' }
+        meta: { title: '航次记录' }
       },
       {
         path: 'maintenance',
-        name: 'MaintenanceList',
+        name: 'Maintenance',
         component: () => import('../views/maintenance/MaintenanceList.vue'),
-        meta: { title: '维修记录' }
+        meta: { title: '维修保养' }
+      },
+      // --- 个人中心路由 ---
+      {
+        path: 'user/profile',
+        name: 'UserProfile',
+        // 确保文件真实存在于 src/views/user/UserProfile.vue
+        component: () => import('../views/user/UserProfile.vue'),
+        meta: { title: '个人中心' }
       }
     ]
   }
@@ -57,6 +63,7 @@ const router = createRouter({
   routes
 })
 
+// 路由守卫：校验 Token
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   if (to.path !== '/login' && !token) {

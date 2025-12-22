@@ -1,131 +1,101 @@
 <template>
-  <n-card bordered title="船舶类型管理">
-    <div class="toolbar" style="margin-bottom: 16px">
-      <n-button type="primary" @click="openModal('add')">
-        <template #icon><n-icon><Add /></n-icon></template> 新增类型
-      </n-button>
+  <el-card shadow="never" class="page-card">
+    <div class="toolbar">
+      <el-button type="primary" icon="Plus" @click="openDialog('add')">新增类型</el-button>
     </div>
 
-    <n-data-table :columns="columns" :data="data" :loading="loading" />
+    <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+      <el-table-column prop="id" label="ID" width="80" align="center" sortable />
+      <el-table-column prop="name" label="类型名称" />
+      <el-table-column prop="alias" label="类型别名/代码" />
+      <el-table-column label="操作" width="180" align="center">
+        <template #default="{ row }">
+          <el-button type="primary" link icon="Edit" @click="openDialog('edit', row)">编辑</el-button>
+          <el-button type="danger" link icon="Delete" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <n-modal v-model:show="showModal" preset="card" :title="modalTitle" style="width: 500px">
-      <n-form ref="formRef" :model="formValue" :rules="rules">
-        <n-form-item label="类型名称" path="name">
-          <n-input v-model:value="formValue.name" placeholder="例如：散货船" />
-        </n-form-item>
-        <n-form-item label="类型别名/代码" path="alias">
-          <n-input v-model:value="formValue.alias" placeholder="例如：BULK_CARRIER" />
-        </n-form-item>
-      </n-form>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="400px" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="form.name" placeholder="例如：散货船" />
+        </el-form-item>
+        <el-form-item label="别名" prop="alias">
+          <el-input v-model="form.alias" placeholder="例如：BULK_CARRIER" />
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <n-space justify="end">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSubmit" :loading="submitting">确定</n-button>
-        </n-space>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
-    </n-modal>
-  </n-card>
+    </el-dialog>
+  </el-card>
 </template>
 
 <script setup>
-import { ref, onMounted, h } from 'vue'
-import { 
-  NButton, 
-  NTag, 
-  NSpace, 
-  useMessage, 
-  NImage, 
-  NIcon, 
-  NCard, 
-  NInput, 
-  NSelect, 
-  NDataTable, 
-  NModal, 
-  NForm, 
-  NFormItem, 
-  NInputNumber, 
-  NUpload 
-} from 'naive-ui'
-import { AddOutline as Add } from '@vicons/ionicons5'
+import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../../utils/request'
 
-const message = useMessage()
 const loading = ref(false)
-const data = ref([])
-const showModal = ref(false)
-const modalTitle = ref('')
+const tableData = ref([])
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
 const submitting = ref(false)
 const formRef = ref(null)
-const formValue = ref({ id: null, name: '', alias: '' })
+const form = ref({ id: null, name: '', alias: '' })
 
-const rules = { name: { required: true, message: '请输入名称', trigger: 'blur' } }
-
-const columns = [
-  { title: 'ID', key: 'id', width: 80 },
-  { title: '名称', key: 'name' },
-  { title: '别名', key: 'alias' },
-  {
-    title: '操作',
-    key: 'actions',
-    render(row) {
-      return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openModal('edit', row) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' })
-        ]
-      })
-    }
-  }
-]
+const rules = { name: [{ required: true, message: '请输入名称', trigger: 'blur' }] }
 
 const fetchData = async () => {
   loading.value = true
   try {
     const res = await request.get('/ship-categories')
-    data.value = res.data
-  } finally {
-    loading.value = false
-  }
+    // 【修复】手动按 ID 升序排列 (从小到大)
+    if (res.data && Array.isArray(res.data)) {
+      tableData.value = res.data.sort((a, b) => a.id - b.id)
+    } else {
+      tableData.value = []
+    }
+  } finally { loading.value = false }
 }
 
-const openModal = (type, row) => {
-  modalTitle.value = type === 'add' ? '新增类型' : '编辑类型'
-  formValue.value = type === 'add' ? { id: null, name: '', alias: '' } : { ...row }
-  showModal.value = true
+const openDialog = (type, row) => {
+  dialogTitle.value = type === 'add' ? '新增类型' : '编辑类型'
+  form.value = type === 'add' ? { id: null, name: '', alias: '' } : { ...row }
+  dialogVisible.value = true
 }
 
-const handleSubmit = () => {
-  formRef.value?.validate(async (errors) => {
-    if (!errors) {
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
       submitting.value = true
       try {
-        if (formValue.value.id) {
-          await request.put('/ship-categories', formValue.value)
-        } else {
-          await request.post('/ship-categories', formValue.value)
-        }
-        message.success('操作成功')
-        showModal.value = false
+        if (form.value.id) await request.put('/ship-categories', form.value)
+        else await request.post('/ship-categories', form.value)
+        ElMessage.success('保存成功')
+        dialogVisible.value = false
         fetchData()
-      } catch (e) {
-        message.error(e.message || '失败')
-      } finally {
-        submitting.value = false
-      }
+      } catch (e) {}
+      finally { submitting.value = false }
     }
   })
 }
 
-const handleDelete = async (row) => {
-  if (!confirm('确认删除?')) return
-  try {
+const handleDelete = (row) => {
+  ElMessageBox.confirm('确认删除?', '警告', { type: 'warning' }).then(async () => {
     await request.delete('/ship-categories', { params: { id: row.id } })
-    message.success('删除成功')
+    ElMessage.success('删除成功')
     fetchData()
-  } catch (e) {
-    message.error('删除失败')
-  }
+  })
 }
 
 onMounted(fetchData)
 </script>
+
+<style scoped>
+.page-card { min-height: calc(100vh - 120px); }
+.toolbar { margin-bottom: 16px; }
+</style>
