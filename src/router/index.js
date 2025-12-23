@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// 导入布局组件
+import { useUserStore } from '@/stores/user' // 1. 引入 store
 import AdminLayout from '../layout/AdminLayout.vue'
-// 导入登录组件
 import Login from '../Login.vue'
 
 const routes = [
@@ -46,11 +45,9 @@ const routes = [
         component: () => import('../views/maintenance/MaintenanceList.vue'),
         meta: { title: '维修保养' }
       },
-      // --- 个人中心路由 ---
       {
         path: 'user/profile',
         name: 'UserProfile',
-        // 确保文件真实存在于 src/views/user/UserProfile.vue
         component: () => import('../views/user/UserProfile.vue'),
         meta: { title: '个人中心' }
       }
@@ -63,14 +60,28 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫：校验 Token
-router.beforeEach((to, from, next) => {
+// 路由守卫
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('token')
+  const userStore = useUserStore() // 2. 获取 store 实例
+
+  // 如果没有 Token 且访问非登录页，强制跳转登录
   if (to.path !== '/login' && !token) {
-    next('/login')
-  } else {
-    next()
+    return next('/login')
   }
+
+  // 3. 【核心修复逻辑】如果有 Token，但是 Store 中没有用户信息，则重新获取
+  if (token && !userStore.user.username) {
+    try {
+      await userStore.getUser() // 重新调用后端接口获取信息
+    } catch (e) {
+      // 如果获取失败（比如 Token 过期），清除 Token 并跳转登录
+      localStorage.removeItem('token')
+      return next('/login')
+    }
+  }
+
+  next()
 })
 
 export default router

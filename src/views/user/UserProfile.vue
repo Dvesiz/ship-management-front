@@ -11,7 +11,7 @@
               :show-file-list="false"
               :before-upload="beforeAvatarUpload"
             >
-              <img v-if="userInfo.avatar" :src="userInfo.avatar" class="avatar" />
+              <img v-if="userInfo.avatarUrl" :src="userInfo.avatarUrl" class="avatar" />
               <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
               <template #tip>
                 <div class="el-upload__tip text-center">点击图片更换头像<br/>支持 jpg/png 文件</div>
@@ -24,9 +24,11 @@
               <el-form-item label="登录账号">
                 <el-input v-model="userInfo.username" disabled />
               </el-form-item>
+              
               <el-form-item label="用户昵称" prop="nickname">
                 <el-input v-model="userInfo.nickname" placeholder="请输入昵称" />
               </el-form-item>
+              
               <el-form-item label="联系邮箱" prop="email">
                 <el-input v-model="userInfo.email" placeholder="请输入邮箱" />
               </el-form-item>
@@ -65,10 +67,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import request from '../../utils/request' // 请确保这个路径是正确的，指向你的 request.js
+import request from '../../utils/request'
+// 1. 引入 Store
+import { useUserStore } from '@/stores/user'
 
 const activeTab = ref('info')
 const updating = ref(false)
+// 2. 实例化 Store
+const userStore = useUserStore()
 
 // --- 基本资料逻辑 ---
 const infoFormRef = ref(null)
@@ -77,7 +83,7 @@ const userInfo = ref({
   username: '',
   nickname: '',
   email: '',
-  avatar: ''
+  avatarUrl: ''
 })
 
 const infoRules = {
@@ -92,27 +98,31 @@ const infoRules = {
 const getUserInfo = async () => {
   try {
     const res = await request.get('/user/info')
-    if (res.code === 0) {
-        userInfo.value = res.data
+    if (res.code === 0 && res.data) {
+       userInfo.value = { ...userInfo.value, ...res.data }
     }
   } catch (e) {
     console.error(e)
   }
 }
 
-// 提交基本信息修改 (不含头像，头像单独处理)
+// 提交基本信息修改
 const handleUpdateInfo = async () => {
   if (!infoFormRef.value) return
   await infoFormRef.value.validate(async (valid) => {
     if (valid) {
       updating.value = true
       try {
-        // 调用 PUT /user/update
         await request.put('/user/update', userInfo.value)
         ElMessage.success('资料修改成功')
-        getUserInfo() // 刷新数据
+        
+        // 同步更新右上角昵称
+        if (userStore.user) {
+            userStore.user.nickname = userInfo.value.nickname
+        }
+        
+        getUserInfo()
       } catch (e) {
-        // 错误已由拦截器处理
       } finally {
         updating.value = false
       }
@@ -132,29 +142,47 @@ const beforeAvatarUpload = (rawFile) => {
   return true
 }
 
+// 核心修改都在这里
 const uploadAvatar = async ({ file }) => {
   const fd = new FormData()
   fd.append('file', file)
+  
+  let newAvatarUrl = ''
+  // 1. 上传图片
   try {
-    // 1. 先上传文件到服务器，获取 URL
     const uploadRes = await request.post('/upload', fd, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    const avatarUrl = uploadRes.data
-    
-    // 2. 调用后端接口 PATCH /user/avatar 更新用户头像字段
-    await request.patch('/user/avatar', null, {
-      params: { avatarUrl: avatarUrl }
-    })
+    newAvatarUrl = uploadRes.data 
+  } catch (e) {
+    ElMessage.error('图片上传失败')
+    return 
+  }
 
-    userInfo.value.avatar = avatarUrl
+  // 2. 更新数据库记录
+  try {
+    await request.patch('/user/avatar', null, {
+      params: { avatarUrl: newAvatarUrl }
+    })
+    
+    // --- 关键点：手动更新本地视图，不要调用 getUserInfo() ---
+    
+    // 更新中间的大图预览
+    userInfo.value.avatarUrl = newAvatarUrl
+
+    // 更新右上角的小头像 (Pinia)
+    if (userStore.user) {
+        userStore.user.avatarUrl = newAvatarUrl
+    }
+
     ElMessage.success('头像更新成功')
   } catch (e) {
-    ElMessage.error('头像上传失败')
+    console.error(e)
+    ElMessage.error('头像保存失败')
   }
 }
 
-// --- 修改密码逻辑 ---
+// --- 修改密码逻辑 (保持不变) ---
 const pwdFormRef = ref(null)
 const pwdForm = reactive({
   oldPassword: '',
@@ -162,7 +190,6 @@ const pwdForm = reactive({
   confirmPassword: ''
 })
 
-// 自定义校验：确认密码
 const validateConfirmPwd = (rule, value, callback) => {
   if (value === '') {
     callback(new Error('请再次输入密码'))
@@ -193,7 +220,6 @@ const handleUpdatePwd = async () => {
     if (valid) {
       updating.value = true
       try {
-        // 调用 PATCH /user/password
         await request.patch('/user/password', null, {
           params: {
             oldPassword: pwdForm.oldPassword,
@@ -203,7 +229,6 @@ const handleUpdatePwd = async () => {
         ElMessage.success('密码修改成功')
         resetPwdForm()
       } catch (e) {
-        // 错误处理
       } finally {
         updating.value = false
       }
@@ -221,62 +246,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.profile-card {
-  min-height: 500px;
-}
-.profile-tabs {
-  padding: 10px;
-}
-.info-container {
-  display: flex;
-  margin-top: 20px;
-}
-.avatar-section {
-  width: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-right: 40px;
-  border-right: 1px solid #eee;
-  padding-right: 20px;
-}
-.form-section {
-  flex: 1;
-  max-width: 500px;
-}
-.password-container {
-  margin-top: 20px;
-  max-width: 500px;
-}
-.avatar-uploader .el-upload {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: var(--el-transition-duration-fast);
-}
-.avatar-uploader .el-upload:hover {
-  border-color: var(--el-color-primary);
-}
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 140px;
-  height: 140px;
-  text-align: center;
-  line-height: 140px;
-}
-.avatar {
-  width: 140px;
-  height: 140px;
-  display: block;
-  object-fit: cover;
-}
-.text-center {
-  text-align: center;
-  margin-top: 10px;
-  color: #909399;
-  line-height: 1.5;
-}
+.profile-card { min-height: 500px; }
+.profile-tabs { padding: 10px; }
+.info-container { display: flex; margin-top: 20px; }
+.avatar-section { width: 200px; display: flex; flex-direction: column; align-items: center; margin-right: 40px; border-right: 1px solid #eee; padding-right: 20px; }
+.form-section { flex: 1; max-width: 500px; }
+.password-container { margin-top: 20px; max-width: 500px; }
+.avatar-uploader .el-upload { border: 1px dashed #d9d9d9; border-radius: 6px; cursor: pointer; position: relative; overflow: hidden; transition: var(--el-transition-duration-fast); }
+.avatar-uploader .el-upload:hover { border-color: var(--el-color-primary); }
+.avatar-uploader-icon { font-size: 28px; color: #8c939d; width: 140px; height: 140px; text-align: center; line-height: 140px; }
+.avatar { width: 140px; height: 140px; display: block; object-fit: cover; }
+.text-center { text-align: center; margin-top: 10px; color: #909399; line-height: 1.5; }
 </style>

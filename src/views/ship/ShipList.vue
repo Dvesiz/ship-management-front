@@ -110,6 +110,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../../utils/request'
+import { Plus, Search, Edit, Delete } from '@element-plus/icons-vue' // 确保引入图标
 
 const loading = ref(false)
 const tableData = ref([])
@@ -118,7 +119,6 @@ const dialogTitle = ref('')
 const submitting = ref(false)
 const formRef = ref(null)
 
-// 【修复1】不再写死分类，改用 ref 存储后端数据
 const categoryOptions = ref([]) 
 
 const searchForm = reactive({ name: '', status: '' })
@@ -130,12 +130,10 @@ const rules = {
   categoryId: [{ required: true, message: '请选择类型', trigger: 'change' }]
 }
 
-// 【修复2】新增：获取所有分类的方法
 const fetchCategories = async () => {
   try {
     const res = await request.get('/ship-categories')
     if (res.code === 0) {
-      // 映射成 Select 需要的格式
       categoryOptions.value = res.data.map(item => ({
         label: item.name,
         value: item.id
@@ -203,17 +201,22 @@ const handleDelete = (row) => {
     })
 }
 
-// 【修复3】动态查找名称，如果找不到（比如被删了）就显示 ID
 const getCategoryName = (id) => {
   const found = categoryOptions.value.find(c => c.value === id)
   return found ? found.label : id 
 }
 
 const getStatusLabel = (s) => ({ 'IN_SERVICE': '在役', 'MAINTENANCE': '维修中', 'STOPPED': '停运', 'RUNNING': '航行中' }[s] || s)
-const getStatusType = (s) => ({ 'IN_SERVICE': 'success', 'MAINTENANCE': 'warning', 'STOPPED': 'danger', 'RUNNING': 'info' }[s] || '')
+
+// 【修复核心】：如果没有匹配到状态，默认返回 'primary'，不能返回空字符串
+const getStatusType = (s) => ({ 
+  'IN_SERVICE': 'success', 
+  'MAINTENANCE': 'warning', 
+  'STOPPED': 'danger', 
+  'RUNNING': 'info' 
+}[s] || 'primary')
 
 onMounted(() => {
-  // 【修复4】加载时先获取分类，再获取列表
   fetchCategories()
   fetchData()
 })

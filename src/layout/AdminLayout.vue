@@ -1,64 +1,101 @@
+<script setup>
+import { 
+  Ship, 
+  UserFilled, 
+  List, 
+  Avatar, 
+  Tools, 
+  SwitchButton,
+  Files
+} from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { useTokenStore } from '@/stores/token'
+import { ElMessageBox, ElMessage } from 'element-plus'
+
+const router = useRouter()
+const userStore = useUserStore()
+const tokenStore = useTokenStore()
+
+const handleCommand = async (command) => {
+  if (command === 'logout') {
+    await ElMessageBox.confirm('确认退出登录吗？', '提示', {
+      type: 'warning'
+    })
+    tokenStore.removeToken()
+    userStore.clearUser()
+    router.push('/login')
+    ElMessage.success('退出成功')
+  } else if (command === 'profile') {
+    router.push('/user/profile')
+  }
+}
+</script>
+
 <template>
   <el-container class="layout-container">
     <el-aside width="220px" class="aside">
-      <div class="logo">
-        <el-icon :size="24" style="margin-right: 8px"><Ship /></el-icon>
-        <span>船舶系统</span>
-      </div>
+      <div class="logo">船舶管理系统</div>
       <el-menu
-        :default-active="activeMenu"
+        active-text-color="#409EFF"
         background-color="#304156"
         text-color="#bfcbd9"
-        active-text-color="#409EFF"
+        :default-active="$route.path"
         router
-        class="el-menu-vertical"
       >
         <el-menu-item index="/ship">
           <el-icon><Ship /></el-icon>
           <span>船舶管理</span>
         </el-menu-item>
+        
         <el-menu-item index="/category">
-          <el-icon><Menu /></el-icon>
-          <span>船舶类型</span>
+          <el-icon><Files /></el-icon>
+          <span>船舶分类</span>
         </el-menu-item>
+        
         <el-menu-item index="/crew">
-          <el-icon><User /></el-icon>
+          <el-icon><UserFilled /></el-icon>
           <span>船员管理</span>
         </el-menu-item>
+
         <el-menu-item index="/voyage">
-          <el-icon><MapLocation /></el-icon>
-          <span>航次记录</span>
+          <el-icon><List /></el-icon>
+          <span>航行记录</span>
         </el-menu-item>
+
         <el-menu-item index="/maintenance">
           <el-icon><Tools /></el-icon>
-          <span>维修保养</span>
+          <span>维护记录</span>
+        </el-menu-item>
+
+        <el-menu-item index="/user/profile">
+          <el-icon><Avatar /></el-icon>
+          <span>个人中心</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
 
     <el-container>
       <el-header class="header">
-        <div class="header-left">
-          <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-            <el-breadcrumb-item>{{ currentTitle }}</el-breadcrumb-item>
-          </el-breadcrumb>
+        <div class="breadcrumb">
+          当前位置：{{ $route.meta.title || '首页' }}
         </div>
         
-        <div class="header-right">
+        <div class="user-info">
           <el-dropdown @command="handleCommand">
-            <span class="user-info">
+            <span class="el-dropdown-link">
               <el-avatar 
                 :size="32" 
-                :src="userInfo.avatar && userInfo.avatar !== '' ? userInfo.avatar : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
+                :src="userStore.user.avatarUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
               />
-              <span class="username">{{ userInfo.nickname || userInfo.username || '管理员' }}</span>
-              <el-icon><ArrowDown /></el-icon>
+              <span class="username">
+                {{ userStore.user.nickname || userStore.user.username || '未登录' }}
+              </span>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                <el-dropdown-item command="profile" :icon="UserFilled">个人中心</el-dropdown-item>
+                <el-dropdown-item command="logout" :icon="SwitchButton" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -66,59 +103,11 @@
       </el-header>
 
       <el-main class="main">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <router-view />
       </el-main>
     </el-container>
   </el-container>
 </template>
-
-<script setup>
-import { computed, ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import request from '../utils/request'
-
-const route = useRoute()
-const router = useRouter()
-const userInfo = ref({})
-
-// 计算当前激活的菜单项
-const activeMenu = computed(() => route.path)
-
-// 计算当前页面的标题（用于面包屑展示）
-const currentTitle = computed(() => route.meta.title || '控制台')
-
-// 获取当前登录用户信息
-const fetchUserInfo = async () => {
-  try {
-    const res = await request.get('/user/info')
-    if (res.code === 0) {
-      userInfo.value = res.data
-    }
-  } catch (e) {
-    console.error('获取用户信息失败', e)
-  }
-}
-
-// 下拉菜单命令处理
-const handleCommand = (cmd) => {
-  if (cmd === 'logout') {
-    // 退出登录：清除本地 Token 并跳转
-    localStorage.removeItem('token')
-    router.push('/login')
-  } else if (cmd === 'profile') {
-    // 跳转到个人中心页面
-    router.push('/user/profile')
-  }
-}
-
-onMounted(() => {
-  fetchUserInfo()
-})
-</script>
 
 <style scoped>
 .layout-container {
@@ -127,62 +116,48 @@ onMounted(() => {
 
 .aside {
   background-color: #304156;
-  transition: width 0.3s;
-  overflow-x: hidden;
 }
 
 .logo {
   height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  line-height: 60px;
+  text-align: center;
   color: #fff;
-  background: #2b3649;
-  font-weight: bold;
   font-size: 18px;
+  font-weight: bold;
+  background-color: #2b2f3a;
 }
 
-.el-menu-vertical {
+.el-menu {
   border-right: none;
 }
 
 .header {
-  background: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  background-color: #fff;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px;
-  padding: 0 20px;
+  border-bottom: 1px solid #dcdfe6;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   cursor: pointer;
-  outline: none;
 }
 
 .username {
-  margin: 0 8px;
-  color: #606266;
+  margin-left: 8px;
   font-size: 14px;
 }
 
 .main {
-  background: #f0f2f5;
+  background-color: #f0f2f5;
   padding: 20px;
-  overflow-y: auto;
 }
 
-/* 路由切换过渡动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.el-dropdown-link {
+  display: flex;
+  align-items: center;
 }
 </style>
