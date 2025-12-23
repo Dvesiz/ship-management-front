@@ -20,9 +20,11 @@
       </el-table-column>
       <el-table-column prop="startPort" label="始发港" />
       <el-table-column prop="endPort" label="目的港" />
-      <el-table-column prop="startTime" label="开航时间" width="180" />
-      <el-table-column prop="endTime" label="结束时间" width="180">
-        <template #default="{ row }">{{ row.endTime || '-' }}</template>
+      <el-table-column prop="startTime" label="开航时间" width="180" >
+        <template #default="{ row }">{{ row.startTime.replace('T', ' ') }}</template>
+      </el-table-column>
+      <el-table-column prop="endTime" label="结束时间" width="180" >
+        <template #default="{ row }">{{ row.endTime ? row.endTime.replace('T', ' ') : '-' }}</template> 
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">

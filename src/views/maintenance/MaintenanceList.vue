@@ -22,7 +22,9 @@
       <el-table-column prop="cost" label="费用 (元)">
         <template #default="{ row }">¥ {{ row.cost }}</template>
       </el-table-column>
-      <el-table-column prop="maintenanceTime" label="时间" width="180" />
+      <el-table-column prop="maintenanceTime" label="时间" width="180" >
+        <template #default="{ row }">{{ row.maintenanceTime.replace('T', ' ') }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="100" align="center" fixed="right">
         <template #default="{ row }">
           <el-button type="danger" link icon="Delete" @click="handleDelete(row)">删除</el-button>
