@@ -1,5 +1,169 @@
-# Vue 3 + Vite
+# 🚢 Ship Management System Frontend (船舶管理系统前端)
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+![Vue](https://img.shields.io/badge/Vue.js-3.5+-4FC08D?style=flat&logo=vue.js&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7.x-646CFF?style=flat&logo=vite&logoColor=white)
+![Element Plus](https://img.shields.io/badge/Element%20Plus-2.13+-409EFF?style=flat&logo=element-plus&logoColor=white)
+![Pinia](https://img.shields.io/badge/Pinia-3.x-FFD700?style=flat&logo=pinia&logoColor=black)
+<img width="1919" height="910" alt="image" src="https://github.com/user-attachments/assets/5628717f-7b53-4d07-b736-56abe109595e" />
+<img width="1919" height="912" alt="image" src="https://github.com/user-attachments/assets/bc2fc2c1-1142-49b0-9e63-1b950852814e" />
+<img width="1919" height="908" alt="image" src="https://github.com/user-attachments/assets/1d0a27f5-5bc5-4cd6-824f-82501797f63e" />
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+
+
+## 📖 项目简介
+
+**Ship Manage Front** 是一个基于 **Vue 3** 和 **Vite** 构建的现代化船舶管理系统前端项目。系统采用 **Element Plus** 组件库打造优雅的响应式界面，通过 **Pinia** 进行状态管理，并实现了完善的权限路由控制。
+
+该项目与后端服务无缝对接，旨在提供高效的船舶信息录入、船员调度、航次追踪及维修保养管理体验。
+
+## ✨ 核心功能
+
+本项目包含以下核心业务模块：
+
+* **🔐 认证与权限**
+  * 用户登录与 JWT Token 自动存储。
+  * 全局路由守卫：自动校验 Token 有效性，并同步用户状态。
+* **🚢 船舶核心管理**
+  * **船舶列表**：全船队信息概览与 CRUD 操作。
+  * **类型管理**：船舶分类配置（如散货船、集装箱船等）。
+* **👨‍✈️ 船员与调度**
+  * **船员管理**：船员档案录入与职位分配。
+* **🌏 运营记录**
+  * **航次记录**：记录船舶出发、抵达及航行状态。
+  * **维修保养**：维护船舶维修历史与费用记录。
+* **👤 个人中心**
+  * 用户个人资料查看与更新。
+
+## 🛠️ 技术栈
+
+| 类别           | 技术/库      | 版本   | 说明                                     |
+| :------------- | :----------- | :----- | :--------------------------------------- |
+| **核心框架**   | Vue.js       | 3.5.24 | 渐进式 JavaScript 框架 (Composition API) |
+| **构建工具**   | Vite         | 7.2.4  | 极速的前端开发与构建工具                 |
+| **UI 组件库**  | Element Plus | 2.13.0 | 基于 Vue 3 的桌面端组件库                |
+| **状态管理**   | Pinia        | 3.0.4  | 新一代轻量级 Vue 状态管理库              |
+| **路由管理**   | Vue Router   | 4.6.4  | Vue.js 官方路由管理器                    |
+| **网络请求**   | Axios        | 1.13.2 | 基于 Promise 的 HTTP 客户端              |
+| **CSS 预处理** | Sass         | 1.97.1 | CSS 扩展语言                             |
+
+## 📂 目录结构
+
+```text
+ship-manage-front
+├── public              # 静态资源
+├── src
+│   ├── api             # 后端 API 接口定义
+│   ├── assets          # 项目静态资源 (Logo, Images)
+│   ├── components      # 公共组件
+│   ├── layout          # 布局组件 (AdminLayout)
+│   ├── router          # 路由配置 (index.js)
+│   ├── stores          # Pinia 状态管理 (user.js)
+│   ├── utils           # 工具函数 (request.js)
+│   ├── views           # 页面视图
+│   │   ├── ship        # 船舶管理页面
+│   │   ├── category    # 类型管理页面
+│   │   ├── crew        # 船员管理页面
+│   │   ├── voyage      # 航次页面
+│   │   ├── maintenance # 维修页面
+│   │   └── user        # 用户中心页面
+│   ├── App.vue         # 根组件
+│   └── main.js         # 入口文件
+├── index.html          # HTML 模板
+├── package.json        # 项目依赖配置
+└── vite.config.js      # Vite 配置文件
+```
+
+## 🚀 快速开始
+
+### 1. 环境准备
+
+请确保您的环境满足以下要求：
+
+- **Node.js**: 16.0 或更高版本
+- **npm** 或 **yarn** / **pnpm**
+
+### 2. 安装依赖
+
+克隆项目到本地并安装依赖：
+
+Bash
+
+```
+git clone [https://github.com/your-repo/ship-manage-front.git](https://github.com/your-repo/ship-manage-front.git)
+cd ship-manage-front
+
+# 使用 npm
+npm install
+# 或者使用 yarn
+yarn
+```
+
+### 3. 开发模式运行
+
+启动本地开发服务器，支持热更新：
+
+Bash
+
+```
+npm run dev
+```
+
+启动后，访问终端输出的本地地址（通常为 `http://localhost:5173`）。
+
+### 4. 构建生产版本
+
+Bash
+
+```
+npm run build
+```
+
+构建产物将输出到 `dist` 目录，可直接部署到 Nginx 或静态服务器。
+
+## ⚙️ 配置说明
+
+### 代理配置 (Proxy)
+
+为解决开发环境下的跨域问题，项目在 `vite.config.js` 中配置了反向代理，将 `/api` 开头的请求转发至后端服务：
+
+JavaScript
+
+```
+// vite.config.js
+server: {
+  proxy: {
+    '/api': {
+      target: 'http://localhost:8080', // 后端服务地址
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/api/, '')
+    }
+  }
+}
+```
+
+如果您修改了后端端口，请同步更新此处配置。
+
+### 别名配置
+
+项目已配置 `@` 指向 `src` 目录，方便模块导入：
+
+JavaScript
+
+```
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, 'src')
+  }
+}
+```
+
+## 🤝 贡献指南
+
+1. Fork 本仓库
+2. 新建 Feat_xxx 分支
+3. 提交代码
+4. 新建 Pull Request
+
+## 📄 开源协议
+
+本项目遵循 MIT License 协议。
